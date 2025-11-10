@@ -1,0 +1,233 @@
+<div>
+    <head>
+        <link href='https://fonts.googleapis.com/css?family=Oswald' rel='stylesheet'>
+        <h1 style="font-family: 'Oswald'; text-align: center;">24-HOUR ENERGY USAGE DASHBOARD</h1>
+
+    </head>
+    <body>
+        <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+        <div style="display: flex;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+                <div>
+                    <h3>CURRENT</h3>
+                    <canvas id="currentChart"></canvas>
+                </div>
+                <div>
+                    <h3>VOLTAGE</h3>
+                    <canvas id="voltageChart"></canvas>
+                </div>
+            </div>
+            <div style="flex: 2; margin-left: 20px;">
+                <h3>POWER & TEMPERATURE</h3>
+                <canvas id="powerTempChart" ></canvas>
+            </div>
+    </body>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<script>
+    const current = document.getElementById('currentChart').getContext('2d');
+    const voltage = document.getElementById('voltageChart').getContext('2d');
+    const powerTemp = document.getElementById('powerTempChart').getContext('2d');
+
+    Chart.register(ChartDataLabels);
+    new Chart(current, {
+        type: 'line',
+        data: {
+            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+            datasets: [
+            {
+                label: 'Fan',
+                data: [0.3, 0.5, 0.4, 0.2, 0.6, 0.3, 0.9],
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: 'rgba(75, 192, 192, 1)'
+            },
+            {
+                label: 'Peltier',
+                data: [0.2, 0.7, 0.3, 0.7, 0.5, 0.2, 0.8],
+                borderColor: 'rgba(102, 255, 0, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: 'rgba(102, 255, 0, 1)'
+            }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    labels: {
+                    usePointStyle: true,
+                    pointStyle: 'rect',
+                    pointStyleWidth: 60,
+                    }
+                },
+                datalabels: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Amps',
+                    },
+                    beginAtZero: true,
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Hour',
+                    },
+                    beginAtZero: true,
+                },
+            },
+        }
+    });
+    new Chart(voltage, {
+        type: 'line',
+        id: 'voltageChart',
+        data: {
+            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+            datasets: [
+            {
+                label: 'Fan',
+                data: [3.3, 3.8, 3.5, 3.6, 3.2, 3.9, 3.4],
+                borderColor: 'rgba(153, 102, 255, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: 'rgba(153, 102, 255, 1)'
+            },
+            {
+                label: 'Peltier',
+                data: [5.0, 4.8, 5.2, 5.1, 4.9, 5.3, 5.0],
+                borderColor: 'rgba(255, 206, 86, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: 'rgba(255, 206, 86, 1)'
+            }
+        ]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    labels: {
+                    usePointStyle: true,
+                    pointStyle: 'rect',
+                    pointStyleWidth: 60
+                    }
+                },
+                datalabels: {
+                    display: false,
+                },
+            },
+            scales: {
+                y: {
+                        title: {
+                            display: true,
+                            text: 'Volts',
+                        },
+                        beginAtZero: true,
+                    },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Hour',
+                    },
+                    beginAtZero: true,
+                },
+            },
+        }
+    });
+    new Chart(powerTemp, {
+        type: 'bar',
+        data: {
+            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+            datasets: [
+            {
+                label: 'Power',
+                type: 'bar',
+                data: [1.7, 2.1, 1.2, 1.8, 2.3, 1.5, 2.7],
+                borderColor: 'rgba(255, 159, 64, 1)',
+                borderWidth: 1,
+                backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                yAxisID: 'y',
+                datalabels: {
+                    anchor: 'end',
+                    align: 'start',
+                    clamp: true,
+                    color: 'white',
+                    font: {
+                        weight: '500',
+                        size: 24,
+                        family: 'Oswald',
+                    },
+                    formatter: (value) => value,
+                },
+            },
+            {
+                label: 'Temperature',
+                type: 'line',
+                data: [68, 70, 66, 72, 75, 69, 78],
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1,
+                pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                yAxisID: 'y2',
+                datalabels: { display: false,},
+            }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    labels: {
+                    usePointStyle: true,
+                    pointStyle: 'rect',
+                    pointStyleWidth: 60
+                    }
+                },
+                datalabels: {
+                    display: true,
+                }  
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    title: {
+                        display: true,
+                        text: 'Watts',
+                    },
+                    beginAtZero: true,
+                    },
+                y2: {
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Farenheit',
+                    },
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false,
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Hour',
+                    },
+                    beginAtZero: true,
+                },
+            }
+        }
+  });
+
+</script>
+<style>
+    h1 {
+        font-family: Oswald;
+        text-align: center;
+    }
+    h3 {
+        font-family: Oswald;
+        font-weight: 400;
+        text-align: start;
+        padding-left: 50;
+    }
+</style>
