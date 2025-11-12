@@ -124,6 +124,32 @@ int RelayControl(int state)
     return state;
 }
 
+// front end button interrupt handler
+void Handle_My_ESP(String message) 
+{
+    message.trim();
+
+    if (message == "FAN_ON") {
+        hardwareAPI.turnFanOn();
+        Serial.println("Fan turned on");
+    }
+    else if (message == "FAN_OFF") {
+        hardwareAPI.turnFanOff();
+        Serial.println("Fan turned off");
+    }
+    else if (message == "PELTIER_ON") {
+        hardwareAPI.turnPeltierOn();
+        Serial.println("Peltier turned on");
+    }
+    else if (message == "PELTIER_OFF") {
+        hardwareAPI.turnPeltierOff();
+        Serial.println("Peltier turned off");
+    }
+    else {
+        Serial.println("Unknown command");
+    }
+
+}
 // timer
 TIM_HandleTypeDef htim2;
 void TIM2_Callback(TIM_HandleTypeDef *htim)
@@ -242,5 +268,10 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
+    if (Serial1.available()) {
+        String message = Serial1.readStringUntil('\n');
+        Handle_My_ESP(message);
+        Serial.print(message);
+    }
+    delay(10);
 }
