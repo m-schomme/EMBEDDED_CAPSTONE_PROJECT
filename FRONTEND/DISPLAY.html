@@ -12,20 +12,30 @@
     <!-- Mary's Code -->
     <h1 style="font-family: 'Oswald'; text-align: center;">24-HOUR ENERGY USAGE DASHBOARD</h1>
 
-    <div style="display: flex;">
+    <div style="display: flex; gap: 20px; height: calc(100vh - 120px);">
         <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
-            <div>
-                <h3>CURRENT</h3>
-                <canvas id="currentChart"></canvas>
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 style="margin: 0 0 10px 0;">CURRENT</h3>
+                <div style="flex: 1; position: relative;">
+                    <canvas id="currentChart"></canvas>
+                </div>
             </div>
-            <div>
-                <h3>VOLTAGE</h3>
-                <canvas id="voltageChart"></canvas>
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 style="margin: 0 0 10px 0;">VOLTAGE</h3>
+                <div style="flex: 1; position: relative;">
+                    <canvas id="voltageChart"></canvas>
+                </div>
             </div>
         </div>
-        <div style="flex: 2; margin-left: 20px;">
-            <h3>POWER & TEMPERATURE</h3>
-            <canvas id="powerTempChart" ></canvas>
+        <div style="flex: 2; margin-left: 20px; display: flex; flex-direction: column; min-height: 0;">
+            <h3 style="margin: 0 0 10px 0;">POWER & TEMPERATURE</h3>
+            <div style="flex: 1; position: relative; min-height: 0;">
+                <canvas id="powerTempChart"></canvas>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                <button id="fanBtn" class="control-btn active" onclick="toggleButton('fanBtn')">FAN ON</button> 
+                <button id="peltierBtn" class="control-btn active" onclick="toggleButton('peltierBtn')">PELTIER ON</button>
+            </div>
         </div>
     </div>
 
@@ -59,6 +69,8 @@
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         labels: {
@@ -112,6 +124,8 @@
             ]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         labels: {
@@ -180,6 +194,8 @@
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         labels: {
@@ -223,6 +239,44 @@
             }
     });
 
+        // Toast pop ups
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #333;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 4px;
+                z-index: 1000;
+                font-family: Oswald;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // button toggle on/off
+        function toggleButton(buttonId) {
+            const btn = document.getElementById(buttonId);
+            const deviceName = buttonId === 'fanBtn' ? 'Fan' : 'Peltier';
+            
+            if (btn.classList.contains('active')) {
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+                btn.innerText = btn.innerText.replace('ON', 'OFF');
+                showToast(`${deviceName} has been turned off`);
+            } else {
+                btn.classList.remove('inactive');
+                btn.classList.add('active');
+                btn.innerText = btn.innerText.replace('OFF', 'ON');
+                showToast(`${deviceName} has been turned on`);
+            }
+        }
     </script>
     <style>
         h1 {
@@ -234,6 +288,45 @@
             font-weight: 400;
             text-align: start;
             padding-left: 50;
+        }
+        .control-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-family: Oswald;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .control-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+        }
+        .control-btn.active:hover {
+            background-color: #45a049;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.6);
+        }
+        .control-btn.inactive {
+            background-color: #cccccc;
+            color: #666666;
+            box-shadow: none;
+        }
+        .control-btn.inactive:hover {
+            background-color: #b3b3b3;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
     </style>
 
