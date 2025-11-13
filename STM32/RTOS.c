@@ -7,6 +7,8 @@
 #define FAN_CURRENT_PIN PA2
 #define PELTIER_RELAY_PIN PA3
 #define PELTIER_CURRENT_PIN PA4
+#define RX PA10
+#define TX PA9
 
 HardwareAPI hardwareAPI(THERMISTOR_PIN, FAN_RELAY_PIN, FAN_CURRENT_PIN,
                         PELTIER_RELAY_PIN, PELTIER_CURRENT_PIN);
@@ -93,7 +95,7 @@ int SampleData(int state)
 
     return state;
 }
-
+  
 int SendData(int state)
 {   
     Serial1.println("Fan Current: ");
@@ -243,9 +245,9 @@ void Handle_My_Error()
 }
 
 void setup() {
-    Serial.begin(115200); // to see on debugger
-    Serial1.begin(9600);
-    Serial.println("STM32 RTOS Initialized");
+    Serial1.begin(115200);
+    Serial1.println("Hey, ESP ! STM32 RTOS Initialized");
+    Serial.begin(115200);
 
     tasks[0].state = SAMPLE_INIT;
     tasks[0].period = samp_period;
