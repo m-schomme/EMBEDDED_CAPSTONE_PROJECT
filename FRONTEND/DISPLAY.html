@@ -264,17 +264,20 @@
         function toggleButton(buttonId) {
             const btn = document.getElementById(buttonId);
             const deviceName = buttonId === 'fanBtn' ? 'Fan' : 'Peltier';
+            const deviceId = buttonId === 'fanBtn' ? 'fan' : 'peltier';
             
             if (btn.classList.contains('active')) {
                 btn.classList.remove('active');
                 btn.classList.add('inactive');
                 btn.innerText = btn.innerText.replace('ON', 'OFF');
                 showToast(`${deviceName} has been turned off`);
+                setDevice(deviceId, false);
             } else {
                 btn.classList.remove('inactive');
                 btn.classList.add('active');
                 btn.innerText = btn.innerText.replace('OFF', 'ON');
                 showToast(`${deviceName} has been turned on`);
+                setDevice(deviceId, true);
             }
         }
     </script>
