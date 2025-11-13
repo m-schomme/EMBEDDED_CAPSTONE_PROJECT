@@ -1,233 +1,338 @@
-<div>
-    <head>
-        <link href='https://fonts.googleapis.com/css?family=Oswald' rel='stylesheet'>
-        <h1 style="font-family: 'Oswald'; text-align: center;">24-HOUR ENERGY USAGE DASHBOARD</h1>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/bundle.js"></script>
+            <link href='https://fonts.googleapis.com/css?family=Oswald' rel='stylesheet'>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  
+    <!-- Mary's Code -->
+    <h1 style="font-family: 'Oswald'; text-align: center;">24-HOUR ENERGY USAGE DASHBOARD</h1>
 
-    </head>
-    <body>
-        <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
-        <div style="display: flex;">
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
-                <div>
-                    <h3>CURRENT</h3>
-                    <canvas id="currentChart"></canvas>
-                </div>
-                <div>
-                    <h3>VOLTAGE</h3>
-                    <canvas id="voltageChart"></canvas>
-                </div>
+    <div style="display: flex;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 20px;">
+            <div>
+                <h3>CURRENT</h3>
+                <canvas id="currentChart"></canvas>
             </div>
-            <div style="flex: 2; margin-left: 20px;">
-                <h3>POWER & TEMPERATURE</h3>
-                <canvas id="powerTempChart" ></canvas>
+            <div>
+                <h3>VOLTAGE</h3>
+                <canvas id="voltageChart"></canvas>
             </div>
-    </body>
-</div>
+        </div>
+        <div style="flex: 2; margin-left: 20px;">
+            <h3>POWER & TEMPERATURE</h3>
+            <canvas id="powerTempChart" ></canvas>
+        </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
-<script>
-    const current = document.getElementById('currentChart').getContext('2d');
-    const voltage = document.getElementById('voltageChart').getContext('2d');
-    const powerTemp = document.getElementById('powerTempChart').getContext('2d');
+    <script>
+        const current = document.getElementById('currentChart').getContext('2d');
+        const voltage = document.getElementById('voltageChart').getContext('2d');
+        const powerTemp = document.getElementById('powerTempChart').getContext('2d');
 
-    Chart.register(ChartDataLabels);
-    new Chart(current, {
-        type: 'line',
-        data: {
-            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
-            datasets: [
-            {
-                label: 'Fan',
-                data: [0.3, 0.5, 0.4, 0.2, 0.6, 0.3, 0.9],
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1,
-                pointBackgroundColor: 'rgba(75, 192, 192, 1)'
-            },
-            {
-                label: 'Peltier',
-                data: [0.2, 0.7, 0.3, 0.7, 0.5, 0.2, 0.8],
-                borderColor: 'rgba(102, 255, 0, 1)',
-                borderWidth: 1,
-                pointBackgroundColor: 'rgba(102, 255, 0, 1)'
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    labels: {
-                    usePointStyle: true,
-                    pointStyle: 'rect',
-                    pointStyleWidth: 60,
-                    }
+        Chart.register(ChartDataLabels);
+        new Chart(current, {
+            type: 'line',
+            data: {
+                labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Fan',
+                    data: [0.3, 0.5, 0.4, 0.2, 0.6, 0.3, 0.9],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(75, 192, 192, 1)'
                 },
-                datalabels: {
-                    display: false,
-                },
+                {
+                    label: 'Peltier',
+                    data: [0.2, 0.7, 0.3, 0.7, 0.5, 0.2, 0.8],
+                    borderColor: 'rgba(102, 255, 0, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(102, 255, 0, 1)'
+                }]
             },
-            scales: {
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Amps',
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rect',
+                        pointStyleWidth: 60,
+                        }
                     },
-                    beginAtZero: true,
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Hour',
+                    datalabels: {
+                        display: false,
                     },
-                    beginAtZero: true,
                 },
-            },
-        }
-    });
-    new Chart(voltage, {
-        type: 'line',
-        id: 'voltageChart',
-        data: {
-            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
-            datasets: [
-            {
-                label: 'Fan',
-                data: [3.3, 3.8, 3.5, 3.6, 3.2, 3.9, 3.4],
-                borderColor: 'rgba(153, 102, 255, 1)',
-                borderWidth: 1,
-                pointBackgroundColor: 'rgba(153, 102, 255, 1)'
-            },
-            {
-                label: 'Peltier',
-                data: [5.0, 4.8, 5.2, 5.1, 4.9, 5.3, 5.0],
-                borderColor: 'rgba(255, 206, 86, 1)',
-                borderWidth: 1,
-                pointBackgroundColor: 'rgba(255, 206, 86, 1)'
-            }
-        ]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    labels: {
-                    usePointStyle: true,
-                    pointStyle: 'rect',
-                    pointStyleWidth: 60
-                    }
-                },
-                datalabels: {
-                    display: false,
-                },
-            },
-            scales: {
-                y: {
+                scales: {
+                    y: {
                         title: {
                             display: true,
-                            text: 'Volts',
+                            text: 'Amps',
                         },
                         beginAtZero: true,
                     },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Hour',
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Hour',
+                        },
+                        beginAtZero: true,
                     },
-                    beginAtZero: true,
-                },
-            },
-        }
-    });
-    new Chart(powerTemp, {
-        type: 'bar',
-        data: {
-            labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
-            datasets: [
-            {
-                label: 'Power',
-                type: 'bar',
-                data: [1.7, 2.1, 1.2, 1.8, 2.3, 1.5, 2.7],
-                borderColor: 'rgba(255, 159, 64, 1)',
-                borderWidth: 1,
-                backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                yAxisID: 'y',
-                datalabels: {
-                    anchor: 'end',
-                    align: 'start',
-                    clamp: true,
-                    color: 'white',
-                    font: {
-                        weight: '500',
-                        size: 24,
-                        family: 'Oswald',
-                    },
-                    formatter: (value) => value,
-                },
-            },
-            {
-                label: 'Temperature',
-                type: 'line',
-                data: [68, 70, 66, 72, 75, 69, 78],
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
-                pointBackgroundColor: 'rgba(255, 99, 132, 1)',
-                yAxisID: 'y2',
-                datalabels: { display: false,},
-            }]
-        },
-        options: {
-            plugins: {
-                legend: {
-                    labels: {
-                    usePointStyle: true,
-                    pointStyle: 'rect',
-                    pointStyleWidth: 60
-                    }
-                },
-                datalabels: {
-                    display: true,
-                }  
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    title: {
-                        display: true,
-                        text: 'Watts',
-                    },
-                    beginAtZero: true,
-                    },
-                y2: {
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Farenheit',
-                    },
-                    beginAtZero: true,
-                    grid: {
-                        drawOnChartArea: false,
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Hour',
-                    },
-                    beginAtZero: true,
                 },
             }
-        }
-  });
+        });
+        new Chart(voltage, {
+            type: 'line',
+            id: 'voltageChart',
+            data: {
+                labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Fan',
+                    data: [3.3, 3.8, 3.5, 3.6, 3.2, 3.9, 3.4],
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(153, 102, 255, 1)'
+                },
+                {
+                    label: 'Peltier',
+                    data: [5.0, 4.8, 5.2, 5.1, 4.9, 5.3, 5.0],
+                    borderColor: 'rgba(255, 206, 86, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(255, 206, 86, 1)'
+                }
+            ]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rect',
+                        pointStyleWidth: 60
+                        }
+                    },
+                    datalabels: {
+                        display: false,
+                    },
+                },
+                scales: {
+                    y: {
+                            title: {
+                                display: true,
+                                text: 'Volts',
+                            },
+                            beginAtZero: true,
+                        },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Hour',
+                        },
+                        beginAtZero: true,
+                    },
+                },
+            }
+        });
+        new Chart(powerTemp, {
+            type: 'bar',
+            data: {
+                labels: ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Power',
+                    type: 'bar',
+                    data: [1.7, 2.1, 1.2, 1.8, 2.3, 1.5, 2.7],
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1,
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                    yAxisID: 'y',
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'start',
+                        clamp: true,
+                        color: 'white',
+                        font: {
+                            weight: '500',
+                            size: 24,
+                            family: 'Oswald',
+                        },
+                        formatter: (value) => value,
+                    },
+                },
+                {
+                    label: 'Temperature',
+                    type: 'line',
+                    data: [68, 70, 66, 72, 75, 69, 78],
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    yAxisID: 'y2',
+                    datalabels: { display: false,},
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rect',
+                        pointStyleWidth: 60
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                    }  
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        title: {
+                            display: true,
+                            text: 'Watts',
+                        },
+                        beginAtZero: true,
+                        },
+                    y2: {
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Farenheit',
+                        },
+                        beginAtZero: true,
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Hour',
+                        },
+                        beginAtZero: true,
+                    },
+                }
+            }
+    });
 
-</script>
-<style>
-    h1 {
-        font-family: Oswald;
-        text-align: center;
-    }
-    h3 {
-        font-family: Oswald;
-        font-weight: 400;
-        text-align: start;
-        padding-left: 50;
-    }
-</style>
+    </script>
+    <style>
+        h1 {
+            font-family: Oswald;
+            text-align: center;
+        }
+        h3 {
+            font-family: Oswald;
+            font-weight: 400;
+            text-align: start;
+            padding-left: 50;
+        }
+    </style>
+
+    <!--  -->
+  
+    <script>
+        const externalUrl = 'http://192.168.1.100/api';  // Replace with actual external URL
+        let chart;
+        const wsUrl = 'ws://' + location.host + '/ws';
+        const socket = new WebSocket(wsUrl);
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            updateChartAndPower(data);
+            updateStatus(data);
+        };
+
+        function updateChartAndPower(data) {
+            const totalPowers = data.map(d => parseFloat(d.sys_volts) * (parseFloat(d.fan_amps) + parseFloat(d.pel_amps)));
+
+            if (data.length > 0) {
+                const last = data[data.length - 1];
+                const power = parseFloat(last.sys_volts) * (parseFloat(last.fan_amps) + parseFloat(last.pel_amps));
+                document.getElementById('power').innerText = power.toFixed(2);
+            } else {
+                document.getElementById('power').innerText = '0';
+            }
+
+            if (!chart) {
+                const ctx = document.getElementById('chart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => d.datetime),
+                        datasets: [
+                            { label: 'Sys Volts', data: data.map(d => parseFloat(d.sys_volts)), borderColor: 'red' },
+                            { label: 'Fan Status', data: data.map(d => parseInt(d.fan_status)), borderColor: 'orange', stepped: 'before' },
+                            { label: 'Fan Amps', data: data.map(d => parseFloat(d.fan_amps)), borderColor: 'blue' },
+                            { label: 'Pel Status', data: data.map(d => parseInt(d.pel_status)), borderColor: 'yellow', stepped: 'before' },
+                            { label: 'Pel Amps', data: data.map(d => parseFloat(d.pel_amps)), borderColor: 'green' },
+                            { label: 'Pel Temp', data: data.map(d => parseFloat(d.pel_temp)), borderColor: 'purple' },
+                            { label: 'Total Power (W)', data: totalPowers, borderColor: 'black' }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            x: { type: 'time', time: { parser: 'YYYY-MM-DD HH:mm:ss' } }
+                        }
+                    }
+                });
+            } else {
+                chart.data.labels = data.map(d => d.datetime);
+                chart.data.datasets[0].data = data.map(d => parseFloat(d.sys_volts));
+                chart.data.datasets[1].data = data.map(d => parseInt(d.fan_status));
+                chart.data.datasets[2].data = data.map(d => parseFloat(d.fan_amps));
+                chart.data.datasets[3].data = data.map(d => parseInt(d.pel_status));
+                chart.data.datasets[4].data = data.map(d => parseFloat(d.pel_amps));
+                chart.data.datasets[5].data = data.map(d => parseFloat(d.pel_temp));
+                chart.data.datasets[6].data = totalPowers;
+                chart.update();
+            }
+        }
+
+        function updateStatus(data) {
+            if (data.length > 0) {
+                const last = data[data.length - 1];
+                const fanOn = parseInt(last.fan_status) === 1;
+                const pelOn = parseInt(last.pel_status) === 1;
+                document.getElementById('fanOn').disabled = fanOn;
+                document.getElementById('fanOff').disabled = !fanOn;
+                document.getElementById('peltierOn').disabled = pelOn;
+                document.getElementById('peltierOff').disabled = !pelOn;
+            }
+        }
+        
+        async function setDevice(device, state) {
+            try {
+                await fetch(externalUrl + '/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device, state })
+                });
+                // Assume external device will insert updated data shortly, triggering WS update
+            } catch (e) {
+                console.error('Failed to set device');
+            }
+        }
+        
+        document.getElementById('fanOn').onclick = () => setDevice('fan', true);
+        document.getElementById('fanOff').onclick = () => setDevice('fan', false);
+        document.getElementById('peltierOn').onclick = () => setDevice('peltier', true);
+        document.getElementById('peltierOff').onclick = () => setDevice('peltier', false);
+        
+        // Fallback polling every second if no WS updates (e.g., if no inserts)
+        setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send('refresh');  // Optional: server can ignore or handle to send update
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
