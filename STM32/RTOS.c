@@ -12,7 +12,8 @@
 
 HardwareAPI hardwareAPI(THERMISTOR_PIN, FAN_RELAY_PIN, FAN_CURRENT_PIN,
                         PELTIER_RELAY_PIN, PELTIER_CURRENT_PIN);
-HardwareSerial Serial1(PA10, PA9);
+HardwareSerial Serial1(RX, TX);
+HardwareTimer Timer2(TIM2);
 
 // global variables
 int sampleCount = 0;
@@ -59,6 +60,7 @@ int SampleData(int state)
 {
     switch (state){
         case SAMPLE_INIT:
+            printTask("SampleData");
             sampleCount = 0;
             avgFanCurrent = 0;
             avgPeltierCurrent = 0;
@@ -98,6 +100,7 @@ int SampleData(int state)
   
 int SendData(int state)
 {   
+    printTask("SendData");
     Serial1.println("Fan Current: ");
     Serial1.print(avgFanCurrent);
     Serial1.println("Peltier Current: ");
@@ -115,11 +118,18 @@ int SendData(int state)
 
     Serial1.println("Temp: ");
     Serial1.print(avgTempF);
+
+    if (Serial1.available()) {
+        String message = Serial1.readStringUntil('\n');
+        Handle_My_ESP(message);
+        Serial.print(message);
+    }
     return state;
 }
 
 int RelayControl(int state)
 {
+    printTask("RelayControl");
     float temp = hardwareAPI.getTemperature();
     if (temp > 80.0f) hardwareAPI.turnFanOff();
     else hardwareAPI.turnFanOn();
@@ -153,95 +163,16 @@ void Handle_My_ESP(String message)
 
 }
 // timer
-TIM_HandleTypeDef htim2;
-void TIM2_Callback(TIM_HandleTypeDef *htim)
+void TimerISR()
 {
-    if (htim->Instance == TIM2) {
-        for (int i = 0; i < numTasks; i++)
-        {
-            if (tasks[i].elapsedTime >= tasks[i].period){
-                tasks[i].state = tasks[i].Function(tasks[i].state);
-                tasks[i].elapsedTime = 0;
-            }
-            tasks[i].elapsedTime += TICK;
-     }
+    for (int i = 0; i < numTasks; i++)
+    {
+        if (tasks[i].elapsedTime >= tasks[i].period){
+            tasks[i].state = tasks[i].Function(tasks[i].state);
+            tasks[i].elapsedTime = 0;
+        }
+        tasks[i].elapsedTime += TICK;
     }
-}
-
-static void MX_TIM2_Init(void)
-{
-    __HAL_RCC_TIM2_CLK_ENABLE();
-
-    htim2.Instance = TIM2;
-    htim2.Init.Prescaler = 80 - 1;              // 1 MHz
-    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 1000 - 1;               // 1 kHz
-    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-
-    HAL_TIM_Base_Init(&htim2);
-    HAL_TIM_Base_Start_IT(&htim2);
-
-    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
-}
-
-// interrupt handler
-void TIM2_IRQHandler(void)
-{
-    HAL_TIM_IRQHandler(&htim2);
-}
-
-// clock (stolen from STM32CubeIDE :) 
-void SystemClock_Config(void)
-{
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Configure the main internal regulator output voltage*/
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
-  {
-    Handle_My_Error();
-  }
-
-  /** Initializes the RCC Oscillators according to the specified parameters in the RCC_OscInitTypeDef structure.*/
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 10;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
-  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Handle_My_Error();
-  }
-
-  /** Initializes the CPU, AHB and APB buses clocks*/
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
-  {
-    Handle_My_Error();
-  }
-}
-
-// error handler
-void Handle_My_Error() 
-{
-  while (1)
-  {
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-    delay(100);
-  }
 }
 
 void setup() {
@@ -264,16 +195,18 @@ void setup() {
     tasks[2].elapsedTime = relay_period;
     tasks[2].Function = &RelayControl;
 
-    HAL_Init();
-    SystemClock_Config();
-    MX_TIM2_Init();
+    Timer2.setPrescaleFactor(80);
+    Timer2.setOverflow(1000, HERTZ_FORMAT);
+    Timer2.attachInterrupt(TimerISR);
+    Timer2.resume();
 }
 
 void loop() {
-    if (Serial1.available()) {
-        String message = Serial1.readStringUntil('\n');
-        Handle_My_ESP(message);
-        Serial.print(message);
-    }
-    delay(10);
+
+}
+
+// helper
+void printTask(const char* taskName){
+    Serial.println("Task ");
+    Serial.print(taskName);
 }
