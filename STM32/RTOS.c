@@ -1,12 +1,13 @@
 #include "HardwareAPI.h"
 #include <Arduino.h>
 #include <math.h>
+#include <stdio.h>
 
-#define THERMISTOR_PIN PA0
-#define FAN_RELAY_PIN PA1
-#define FAN_CURRENT_PIN PA2
-#define PELTIER_RELAY_PIN PA3
-#define PELTIER_CURRENT_PIN PA4
+#define THERMISTOR_PIN PA_0
+#define FAN_RELAY_PIN PD_6
+#define FAN_CURRENT_PIN PA_1
+#define PELTIER_RELAY_PIN PD_5
+#define PELTIER_CURRENT_PIN PA_2
 #define RX PA10
 #define TX PA9
 
@@ -17,7 +18,10 @@ HardwareTimer Timer2(TIM2);
 
 // global variables
 int sampleCount = 0;
-const int num_samples = 10;
+const int num_samples = 5000;
+int fanStatus = 0;
+int pelStatus = 0;
+int logData = 0;
 
 // task struct
 typedef struct {
@@ -39,12 +43,12 @@ task tasks[numTasks];
 
 // data
 volatile float avgFanCurrent = 0;
-float avgPeltierCurrent = 0;
-float avgFanVoltage = 0;
-float avgPeltierVoltage = 0;
-float avgFanPower = 0;
-float avgPeltierPower = 0;
-float avgTempF = 0;
+volatile float avgPeltierCurrent = 0;
+volatile float avgFanVoltage = 0;
+volatile float avgPeltierVoltage = 0;
+volatile float avgFanPower = 0;
+volatile float avgPeltierPower = 0;
+volatile float avgTempF = 0;
 
 // states
 enum SAMP_DATA_ST {SAMPLE_INIT, SAMP_READ, SAMP_AVG};
@@ -54,21 +58,14 @@ enum RELAY_CTRL_ST {RELAY};
 int SampleData(int state);
 int SendData(int state);
 int RelayControl(int state);
+volatile bool SendFlag = false;
 
 // task functions
 int SampleData(int state)
 {
     switch (state){
         case SAMPLE_INIT:
-            printTask("SampleData");
             sampleCount = 0;
-            avgFanCurrent = 0;
-            avgPeltierCurrent = 0;
-            avgFanVoltage = 0;
-            avgPeltierVoltage = 0;
-            avgFanPower = 0;
-            avgPeltierPower = 0;
-            avgTempF = 0;
             state = SAMP_READ;
             break;
         case SAMP_READ:
@@ -91,7 +88,9 @@ int SampleData(int state)
             avgFanPower /= num_samples;
             avgPeltierPower /= num_samples;
             avgTempF /= num_samples;
-            state = SAMPLE_INIT;
+            SendFlag = true;
+            sampleCount = 0;
+            state = SAMP_READ;
             break;
     }
 
@@ -100,36 +99,33 @@ int SampleData(int state)
   
 int SendData(int state)
 {   
-    printTask("SendData");
-    Serial1.println("Fan Current: ");
-    Serial1.print(avgFanCurrent);
-    Serial1.println("Peltier Current: ");
-    Serial1.print(avgPeltierCurrent);
+    if (!SendFlag) return state;
+    Serial1.print(avgFanVoltage); Serial1.print(",");
+    Serial1.print(avgFanCurrent); Serial1.print(",");
+    Serial1.print(avgFanPower); Serial1.print(",");
+    Serial1.print(avgPeltierVoltage); Serial1.print(",");
+    Serial1.print(avgPeltierCurrent); Serial1.print(",");
+    Serial1.print(avgPeltierPower); Serial1.print(",");
+    Serial1.print(avgTempF); Serial1.print(",");
+    Serial1.print(fanStatus); Serial1.print(",");
+    Serial1.print(pelStatus); Serial1.print(",");
+    Serial1.println(logData);
 
-    Serial1.println("Fan Voltage: ");
-    Serial1.print(avgFanVoltage);
-    Serial1.println("Peltier Voltage: ");
-    Serial1.print(avgPeltierVoltage);
 
-    Serial1.println("Fan Power: ");
-    Serial1.print(avgFanPower);
-    Serial1.println("Peltier Power: ");
-    Serial1.print(avgPeltierPower);
+    avgFanCurrent = 0;
+    avgPeltierCurrent = 0;
+    avgFanVoltage = 0;
+    avgPeltierVoltage = 0;
+    avgFanPower = 0;
+    avgPeltierPower = 0;
+    avgTempF = 0;
 
-    Serial1.println("Temp: ");
-    Serial1.print(avgTempF);
-
-    if (Serial1.available()) {
-        String message = Serial1.readStringUntil('\n');
-        Handle_My_ESP(message);
-        Serial.print(message);
-    }
+    SendFlag = false;
     return state;
 }
 
 int RelayControl(int state)
 {
-    printTask("RelayControl");
     float temp = hardwareAPI.getTemperature();
     if (temp > 80.0f) hardwareAPI.turnFanOff();
     else hardwareAPI.turnFanOn();
@@ -163,22 +159,23 @@ void Handle_My_ESP(String message)
 
 }
 // timer
+volatile bool TimerFlag = false;
 void TimerISR()
 {
-    for (int i = 0; i < numTasks; i++)
-    {
-        if (tasks[i].elapsedTime >= tasks[i].period){
-            tasks[i].state = tasks[i].Function(tasks[i].state);
-            tasks[i].elapsedTime = 0;
-        }
-        tasks[i].elapsedTime += TICK;
-    }
+    TimerFlag = true;
 }
 
 void setup() {
     Serial1.begin(115200);
     Serial1.println("Hey, ESP ! STM32 RTOS Initialized");
     Serial.begin(115200);
+    Serial.println("RTOS STARTED");
+
+    // turn fan and peltier on initially
+    hardwareAPI.turnFanOn();
+    fanStatus = 1;
+    hardwareAPI.turnPeltierOn();
+    pelStatus = 1;
 
     tasks[0].state = SAMPLE_INIT;
     tasks[0].period = samp_period;
@@ -202,11 +199,20 @@ void setup() {
 }
 
 void loop() {
-
-}
-
-// helper
-void printTask(const char* taskName){
-    Serial.println("Task ");
-    Serial.print(taskName);
+    if (TimerFlag) {
+        TimerFlag = false;
+        for (int i = 0; i < numTasks; i++)
+        {
+            if (tasks[i].elapsedTime >= tasks[i].period){
+                tasks[i].state = tasks[i].Function(tasks[i].state);
+                tasks[i].elapsedTime = 0;
+            }
+            tasks[i].elapsedTime += TICK;
+        }
+    }
+    if (Serial1.available()) {
+        String message = Serial1.readStringUntil('\n');
+        Handle_My_ESP(message);
+        Serial.print(message);
+    }
 }
