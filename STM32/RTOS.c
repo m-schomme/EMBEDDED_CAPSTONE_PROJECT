@@ -19,10 +19,9 @@ HardwareTimer Timer2(TIM2);
 
 // global variables
 int sampleCount = 0;
-const int num_samples = 1000;
+const int num_samples = 100;
 int fanStatus = 0;
 int pelStatus = 0;
-int logData = 0;
 String send_data;
 
 
@@ -39,9 +38,9 @@ const unsigned long TICK = 1;           // 1 ms
 const unsigned long samp_period = 1;    // 1khz
 const unsigned long send_period = num_samples * samp_period;
 const unsigned long relay_period = 50;
-
+const unsigned long log_period = 60000; // log data every min
 // tasks
-const int numTasks = 3;
+const int numTasks = 4;
 task tasks[numTasks];
 
 // data
@@ -53,15 +52,22 @@ volatile float avgFanPower = 0;
 volatile float avgPeltierPower = 0;
 volatile float avgTempF = 0;
 
+volatile float powerManagementFanPowerSum = 0;
+volatile float powerManagementPeltierPowerSum = 0;
+volatile int powerManagementSumSamples = 0;
+
 // states
 enum SAMP_DATA_ST {SAMPLE_INIT, SAMP_READ, SAMP_AVG, AWAIT_SEND};
 enum SEND_DATA_ST {SEND};
 enum RELAY_CTRL_ST {RELAY};
+enum LOG_DATA_ST {LOG_DATA};
 
 int SampleData(int state);
 int SendData(int state);
 int RelayControl(int state);
+int LogData(int state);
 volatile bool SendFlag = false;
+volatile bool logData = false;
 
 // task functions
 int SampleData(int state)
@@ -76,8 +82,9 @@ int SampleData(int state)
             avgPeltierCurrent += hardwareAPI.getPeltierCurrent();
             avgFanVoltage += hardwareAPI.getFanVoltage();
             avgPeltierVoltage += hardwareAPI.getPeltierVoltage();
-            // avgFanPower += hardwareAPI.getFanPower();
-            // avgPeltierPower += hardwareAPI.getPeltierPower();
+            powerManagementFanPowerSum += hardwareAPI.getFanPower();
+            powerManagementPeltierPowerSum += hardwareAPI.getPeltierPower();
+            powerManagementSumSamples++;
             avgTempF += hardwareAPI.getTemperature();
             sampleCount++;
             if (sampleCount >= num_samples) state = SAMP_AVG;
@@ -130,17 +137,34 @@ int SendData(int state)
     avgTempF = 0;
 
     SendFlag = false;
+    logData = false;
     return state;
 }
 
 int RelayControl(int state)
 {
     float temp = hardwareAPI.getTemperature();
-    // if (temp > 80.0f) hardwareAPI.turnFanOff();
-    // else hardwareAPI.turnFanOn();
+    if (temp > 80.0f) {
+        hardwareAPI.turnFanOn();
+        hardwareAPI.turnPeltierOn();
+    }
+    
+    if (powerManagementSumSamples >= 600) {
+        powerManagementFanPowerSum /= powerManagementSumSamples;
+        powerManagementPeltierPowerSum /= powerManagementSumSamples;
+        if ((powerManagementFanPowerSum + powerManagementPeltierPowerSum) > 2){
+            hardwareAPI.turnFanOff();
+            hardwareAPI.turnPeltierOff();
+        }
+        powerManagementSumSamples = 0;
+    }
     return state;
 }
 
+int LogData(int state){
+    logData = true;
+    return state;
+}
 // front end button interrupt handler
 void Handle_My_ESP(String message) 
 {
@@ -202,6 +226,11 @@ void setup() {
     tasks[2].period = relay_period;
     tasks[2].elapsedTime = relay_period;
     tasks[2].Function = &RelayControl;
+
+    tasks[3].state = LOG_DATA;
+    tasks[3].period = log_period;
+    tasks[3].elapsedTime = log_period;
+    tasks[3].Function = &LogData;
 
     Timer2.setPrescaleFactor(80);
     Timer2.setOverflow(1000, HERTZ_FORMAT);
