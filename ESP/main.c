@@ -41,6 +41,59 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
   }
 }
 
+void generateTestData() {
+  // Generate 24 hours of fake data with timestamps
+  time_t now = time(nullptr);
+  struct tm timeinfo = *localtime(&now);
+  
+  // Start from 24 hours ago
+  time_t startTime = now - (24 * 3600);
+  
+  for (int i = 0; i < 24; i++) {
+    time_t dataTime = startTime + (i * 3600);  // Add 1 hour each iteration
+    struct tm *tm_info = localtime(&dataTime);
+    
+    char datetime[20];
+    strftime(datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S", tm_info);
+    
+    // Generate realistic fake data
+    float sys_volts = 12.0 + (random(0, 20) / 100.0);  // 12.0-12.2V
+    int fan_status = random(0, 2);  // 0 or 1
+    float fan_amps = fan_status ? (0.5 + (random(0, 50) / 100.0)) : 0.0;  // 0.5-1.0A when on
+    int pel_status = random(0, 2);  // 0 or 1
+    float pel_amps = pel_status ? (1.0 + (random(0, 100) / 100.0)) : 0.0;  // 1.0-2.0A when on
+    float pel_temp = 25.0 + (random(0, 400) / 100.0);  // 25-29°C
+    
+    String query = "insert into data values (\"";
+    query += datetime;
+    query += "\",\"";
+    query += String(sys_volts, 2);
+    query += "\",\"";
+    query += String(fan_status);
+    query += "\",\"";
+    query += String(fan_amps, 2);
+    query += "\",\"";
+    query += String(pel_status);
+    query += "\",\"";
+    query += String(pel_amps, 2);
+    query += "\",\"";
+    query += String(pel_temp, 2);
+    query += "\")";
+    
+    int res = execQuery(query.c_str());
+    if (res != 0) {
+      Serial.print("Error inserting test data at ");
+      Serial.println(datetime);
+    }
+  }
+  
+  Serial.println("Test data generation complete");
+  
+  // Broadcast to all WebSocket clients
+  String json = getDataJson();
+  ws.textAll(json);
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -82,6 +135,13 @@ void setup() {
     Serial.println("Failed to create table");
   }
 
+  // Populate with test data if table is empty
+  int countRes = execQuery("select count(*) from data");
+  if (countRes == 0 && selectedRows.rowsLen == 0) {
+    Serial.println("Populating database with test data...");
+    generateTestData();
+  }
+
   // WebSocket handler
   ws.onEvent(onWsEvent);
   server.addHandler(&ws);
@@ -121,6 +181,18 @@ void setup() {
         }
       }
     });
+
+  // Test data endpoint - POST to /api/test to populate fake data
+  server.on("/api/test", HTTP_POST, [](AsyncWebServerRequest *request) {
+    generateTestData();
+    request->send(200, "text/plain", "Test data generated");
+  });
+
+  server.on("/api/cleardata", HTTP_POST, [](AsyncWebServerRequest *request) {
+    execQuery("drop table data");
+    execQuery("create table data (datetime text, sys_volts text, fan_status tinyint, fan_amps text, pel_status tinyint, pel_amps text, pel_temp text)");
+    request->send(200, "text/plain", "Data cleared");
+  });
 
   server.begin();
 }

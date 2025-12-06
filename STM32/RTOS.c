@@ -3,13 +3,14 @@
 #include <math.h>
 #include <stdio.h>
 
-#define THERMISTOR_PIN PA_0
-#define FAN_RELAY_PIN PD_6
-#define FAN_CURRENT_PIN PA_1
-#define PELTIER_RELAY_PIN PD_5
-#define PELTIER_CURRENT_PIN PA_2
+#define THERMISTOR_PIN PA0
+#define FAN_RELAY_PIN PB10
+#define FAN_CURRENT_PIN PA1
+#define PELTIER_RELAY_PIN PB4
+#define PELTIER_CURRENT_PIN PA4
 #define RX PA10
 #define TX PA9
+#define THREE_VOLT PB5
 
 HardwareAPI hardwareAPI(THERMISTOR_PIN, FAN_RELAY_PIN, FAN_CURRENT_PIN,
                         PELTIER_RELAY_PIN, PELTIER_CURRENT_PIN);
@@ -18,10 +19,12 @@ HardwareTimer Timer2(TIM2);
 
 // global variables
 int sampleCount = 0;
-const int num_samples = 5000;
+const int num_samples = 1000;
 int fanStatus = 0;
 int pelStatus = 0;
 int logData = 0;
+String send_data;
+
 
 // task struct
 typedef struct {
@@ -34,7 +37,7 @@ typedef struct {
 // periods
 const unsigned long TICK = 1;           // 1 ms
 const unsigned long samp_period = 1;    // 1khz
-const unsigned long send_period = samp_period * num_samples;
+const unsigned long send_period = num_samples * samp_period;
 const unsigned long relay_period = 50;
 
 // tasks
@@ -51,7 +54,7 @@ volatile float avgPeltierPower = 0;
 volatile float avgTempF = 0;
 
 // states
-enum SAMP_DATA_ST {SAMPLE_INIT, SAMP_READ, SAMP_AVG};
+enum SAMP_DATA_ST {SAMPLE_INIT, SAMP_READ, SAMP_AVG, AWAIT_SEND};
 enum SEND_DATA_ST {SEND};
 enum RELAY_CTRL_ST {RELAY};
 
@@ -73,11 +76,10 @@ int SampleData(int state)
             avgPeltierCurrent += hardwareAPI.getPeltierCurrent();
             avgFanVoltage += hardwareAPI.getFanVoltage();
             avgPeltierVoltage += hardwareAPI.getPeltierVoltage();
-            avgFanPower += hardwareAPI.getFanPower();
-            avgPeltierPower += hardwareAPI.getPeltierPower();
+            // avgFanPower += hardwareAPI.getFanPower();
+            // avgPeltierPower += hardwareAPI.getPeltierPower();
             avgTempF += hardwareAPI.getTemperature();
             sampleCount++;
-
             if (sampleCount >= num_samples) state = SAMP_AVG;
             break;
         case SAMP_AVG:
@@ -85,11 +87,17 @@ int SampleData(int state)
             avgPeltierCurrent /= num_samples;
             avgFanVoltage /= num_samples;
             avgPeltierVoltage /= num_samples;
-            avgFanPower /= num_samples;
-            avgPeltierPower /= num_samples;
+            avgFanPower = avgFanVoltage * avgFanCurrent;
+            avgPeltierPower = avgPeltierVoltage * avgPeltierCurrent;
             avgTempF /= num_samples;
+            fanStatus = hardwareAPI.getFanStatus();
+            pelStatus = hardwareAPI.getPeltierStatus();
             SendFlag = true;
             sampleCount = 0;
+            state = AWAIT_SEND;
+            break;
+        case AWAIT_SEND:
+            if (SendFlag) break;
             state = SAMP_READ;
             break;
     }
@@ -109,8 +117,9 @@ int SendData(int state)
     Serial1.print(avgTempF); Serial1.print(",");
     Serial1.print(fanStatus); Serial1.print(",");
     Serial1.print(pelStatus); Serial1.print(",");
-    Serial1.println(logData);
-
+    Serial1.print(logData);
+    Serial1.print("|");
+    Serial1.flush();
 
     avgFanCurrent = 0;
     avgPeltierCurrent = 0;
@@ -127,8 +136,8 @@ int SendData(int state)
 int RelayControl(int state)
 {
     float temp = hardwareAPI.getTemperature();
-    if (temp > 80.0f) hardwareAPI.turnFanOff();
-    else hardwareAPI.turnFanOn();
+    // if (temp > 80.0f) hardwareAPI.turnFanOff();
+    // else hardwareAPI.turnFanOn();
     return state;
 }
 
@@ -171,11 +180,13 @@ void setup() {
     Serial.begin(115200);
     Serial.println("RTOS STARTED");
 
+    // intialize 3.3 V
+    pinMode(THREE_VOLT, OUTPUT);
+    digitalWrite(THREE_VOLT, HIGH);
+
     // turn fan and peltier on initially
     hardwareAPI.turnFanOn();
-    fanStatus = 1;
-    hardwareAPI.turnPeltierOn();
-    pelStatus = 1;
+    hardwareAPI.turnPeltierOff();
 
     tasks[0].state = SAMPLE_INIT;
     tasks[0].period = samp_period;
@@ -184,7 +195,7 @@ void setup() {
 
     tasks[1].state = SEND;
     tasks[1].period = send_period;
-    tasks[1].elapsedTime = send_period;
+    tasks[1].elapsedTime = 1;
     tasks[1].Function = &SendData;
 
     tasks[2].state = RELAY;

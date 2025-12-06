@@ -35,8 +35,9 @@ HardwareAPI::HardwareAPI(bool testing) {
 void HardwareAPI::setBaseADC() {
     turnFanOff();
     turnPeltierOff();
-    _baseFanADCValue = _getCurrentADC(1000, _fanCurrentPin);
-    _basePeltierADCValue = _getCurrentADC(1000, _peltierCurrentPin);
+    delay(5000);
+    _baseFanADCValue = _getCurrentADC(5000, _fanCurrentPin);
+    _basePeltierADCValue = _getCurrentADC(5000, _peltierCurrentPin);
 }
 
 
@@ -61,21 +62,21 @@ float HardwareAPI::getTemperature() {
 void HardwareAPI::turnFanOn() {
     _fanRelayStatus = 1;
     if (_testing) return;
-    digitalWrite(_fanRelayPin, _fanRelayStatus);
+    digitalWrite(_fanRelayPin, HIGH);
 }
 
 
 void HardwareAPI::turnFanOff() {
     _fanRelayStatus = 0;
     if (_testing) return;
-    digitalWrite(_fanRelayPin, _fanRelayStatus);
+    digitalWrite(_fanRelayPin, LOW);
 }
 
 
 bool HardwareAPI::toggleFan() {
     _fanRelayStatus = !_fanRelayStatus;
     if (_testing) return _fanRelayStatus;
-    digitalWrite(_fanRelayPin, _fanRelayStatus);
+    digitalWrite(_fanRelayPin, _fanRelayStatus ? HIGH : LOW);
     return _fanRelayStatus;
 }
 
@@ -91,21 +92,21 @@ bool HardwareAPI::getFanStatus() {
 void HardwareAPI::turnPeltierOn() {
     _peltierRelayStatus = 1;
     if (_testing) return;
-    digitalWrite(_peltierRelayPin, _peltierRelayStatus);
+    digitalWrite(_peltierRelayPin, HIGH);
 }
 
 
 void HardwareAPI::turnPeltierOff() {
     _peltierRelayStatus = 0;
     if (_testing) return;
-    digitalWrite(_peltierRelayPin, _peltierRelayStatus);
+    digitalWrite(_peltierRelayPin, LOW);
 }
 
 
 bool HardwareAPI::togglePeltier() {
     _peltierRelayStatus = !_peltierRelayStatus;
     if (_testing) return _peltierRelayStatus;
-    digitalWrite(_peltierRelayPin, _peltierRelayStatus);
+    digitalWrite(_peltierRelayPin, _peltierRelayStatus ? HIGH : LOW);
     return _peltierRelayStatus;
 }
 
@@ -190,11 +191,14 @@ float HardwareAPI::_getCurrent(int samples, int sensorPin) {
         }
     }
     
-    int s = analogRead(sensorPin);
+    adcValue /= samples;
 
-    float voltage = s * (3.3 / 4095.0);
+    float voltage = adcValue * (3.3 / 4095.0);
     float difference = abs(voltage - (sensorPin == _fanCurrentPin ? (_baseFanADCValue / 4095.0 * 3.3) : (_basePeltierADCValue / 4095.0 * 3.3)));
-    float current = difference / (.185/2);
+    float current = difference / ((.185 * (sensorPin == _fanCurrentPin ? _fanMultiplier : _peltierMultiplier))/2);
+    // current = 0;
+
+    if (current <= .15) current = 0;
 
     return current;
 }

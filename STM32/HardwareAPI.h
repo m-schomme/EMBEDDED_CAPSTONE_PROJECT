@@ -86,6 +86,9 @@ private:
     int _baseFanADCValue = 1798;
     int _basePeltierADCValue = 1798;
 
+    float _peltierMultiplier = .92;
+    float _fanMultiplier = .51;
+
 
 
     /*
