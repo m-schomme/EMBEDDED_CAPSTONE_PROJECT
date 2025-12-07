@@ -8,18 +8,16 @@
 #define FAN_CURRENT_PIN PA1
 #define PELTIER_RELAY_PIN PB4
 #define PELTIER_CURRENT_PIN PA4
-#define RX PA10
-#define TX PA9
 #define THREE_VOLT PB5
 
 HardwareAPI hardwareAPI(THERMISTOR_PIN, FAN_RELAY_PIN, FAN_CURRENT_PIN,
                         PELTIER_RELAY_PIN, PELTIER_CURRENT_PIN);
-HardwareSerial Serial1(RX, TX);
+HardwareSerial Serial1(USART1);
 HardwareTimer Timer2(TIM2);
 
 // global variables
 int sampleCount = 0;
-const int num_samples = 100;
+const int num_samples = 1000;
 int fanStatus = 0;
 int pelStatus = 0;
 String send_data;
@@ -126,7 +124,6 @@ int SendData(int state)
     Serial1.print(pelStatus); Serial1.print(",");
     Serial1.print(logData);
     Serial1.print("|");
-    Serial1.flush();
 
     avgFanCurrent = 0;
     avgPeltierCurrent = 0;
@@ -149,7 +146,7 @@ int RelayControl(int state)
         hardwareAPI.turnPeltierOn();
     }
     
-    if (powerManagementSumSamples >= 600) {
+    if (powerManagementSumSamples >= 40000) {
         powerManagementFanPowerSum /= powerManagementSumSamples;
         powerManagementPeltierPowerSum /= powerManagementSumSamples;
         if ((powerManagementFanPowerSum + powerManagementPeltierPowerSum) > 2){
@@ -199,6 +196,8 @@ void TimerISR()
 }
 
 void setup() {
+    Serial1.setTx(PA9);
+    Serial1.setRx(PA10);
     Serial1.begin(115200);
     Serial1.println("Hey, ESP ! STM32 RTOS Initialized");
     Serial.begin(115200);
@@ -219,7 +218,7 @@ void setup() {
 
     tasks[1].state = SEND;
     tasks[1].period = send_period;
-    tasks[1].elapsedTime = 1;
+    tasks[1].elapsedTime = send_period;
     tasks[1].Function = &SendData;
 
     tasks[2].state = RELAY;
