@@ -50,9 +50,10 @@ volatile float avgFanPower = 0;
 volatile float avgPeltierPower = 0;
 volatile float avgTempF = 0;
 
-volatile float powerManagementFanPowerSum = 0;
-volatile float powerManagementPeltierPowerSum = 0;
-volatile int powerManagementSumSamples = 0;
+// Power management config
+const int powerManagementMemory = 30;
+volatile float powerManagementFanPowers[powerManagementMemory] = {0};
+volatile float powerManagementPeltierPowers[powerManagementMemory] = {0};
 
 // states
 enum SAMP_DATA_ST {SAMPLE_INIT, SAMP_READ, SAMP_AVG, AWAIT_SEND};
@@ -80,9 +81,9 @@ int SampleData(int state)
             avgPeltierCurrent += hardwareAPI.getPeltierCurrent();
             avgFanVoltage += hardwareAPI.getFanVoltage();
             avgPeltierVoltage += hardwareAPI.getPeltierVoltage();
-            powerManagementFanPowerSum += hardwareAPI.getFanPower();
-            powerManagementPeltierPowerSum += hardwareAPI.getPeltierPower();
-            powerManagementSumSamples++;
+            // powerManagementFanPowerSum += hardwareAPI.getFanPower();
+            // powerManagementPeltierPowerSum += hardwareAPI.getPeltierPower();
+            // powerManagementSumSamples++;
             avgTempF += hardwareAPI.getTemperature();
             sampleCount++;
             if (sampleCount >= num_samples) state = SAMP_AVG;
@@ -125,6 +126,14 @@ int SendData(int state)
     Serial1.print(logData);
     Serial1.print("|");
 
+    for (int i = powerManagementMemory-1; i > 0; i--) {
+        powerManagementFanPowers[i] = powerManagementFanPowers[i-1];
+        powerManagementPeltierPowers[i] = powerManagementPeltierPowers[i-1];
+    }
+    powerManagementFanPowers[0] = avgFanPower;
+    powerManagementPeltierPowers[0] = avgPeltierPower;
+
+    
     avgFanCurrent = 0;
     avgPeltierCurrent = 0;
     avgFanVoltage = 0;
@@ -135,26 +144,34 @@ int SendData(int state)
 
     SendFlag = false;
     logData = false;
+
     return state;
 }
 
 int RelayControl(int state)
 {
-    float temp = hardwareAPI.getTemperature();
-    if (temp > 80.0f) {
-        hardwareAPI.turnFanOn();
-        hardwareAPI.turnPeltierOn();
+
+    float fanPowerAvg = 0;
+    float peltierPowerAvg = 0;
+
+    for (int i = 0; i < powerManagementMemory; i++) {
+        fanPowerAvg += powerManagementFanPowers[i];
+        peltierPowerAvg += powerManagementPeltierPowers[i];
     }
-    
-    if (powerManagementSumSamples >= 40000) {
-        powerManagementFanPowerSum /= powerManagementSumSamples;
-        powerManagementPeltierPowerSum /= powerManagementSumSamples;
-        if ((powerManagementFanPowerSum + powerManagementPeltierPowerSum) > 2){
-            hardwareAPI.turnFanOff();
-            hardwareAPI.turnPeltierOff();
+    fanPowerAvg /= powerManagementMemory;
+    peltierPowerAvg /= powerManagementMemory;
+
+    if ((fanPowerAvg + peltierPowerAvg) > 10) {
+        hardwareAPI.turnFanOff();
+        hardwareAPI.turnPeltierOff();
+    } else {
+        float temp = hardwareAPI.getTemperature();
+        if (temp > 80.0f) {
+            hardwareAPI.turnFanOn();
+            hardwareAPI.turnPeltierOn();
         }
-        powerManagementSumSamples = 0;
     }
+
     return state;
 }
 
