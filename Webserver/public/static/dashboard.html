@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/bundle.js"></script>
+    <link href='https://fonts.googleapis.com/css?family=Oswald' rel='stylesheet'>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <h1 style="font-family: 'Oswald'; text-align: center; font-weight: 400;">24-HOUR ENERGY USAGE DASHBOARD</h1>
+
+    <div class="section">
+        <h3 style="margin: 0 0 10px 0;">STATUS</h3>
+        
+        <div class="card-section">
+            <h4>System</h4>
+            <div class="card-container system-cards">
+                <div class="card status-card">
+                    <h4>OFF</h4>
+                </div>
+                <div class="card temperature-card">
+                    <h4>0.00F</h4>
+                </div>
+                <div class="card power-card">
+                    <h4>0.00W</h4>
+                </div>
+            </div>
+        </div>
+        <div class="card-section">
+            <h4>Peltier</h4>
+            <div class="card-container peltier-cards">
+                <div class="card status-card">
+                    <h4>OFF</h4>
+                </div>
+                <div class="card current-card">
+                    <h4>0.00A</h4>
+                </div>
+                <div class="card voltage-card">
+                    <h4>0.00V</h4>
+                </div>
+                <div class="card power-card">
+                    <h4>0.00W</h4>
+                </div>
+            </div>
+        </div>
+        <div class="card-section">
+            <h4>Fan</h4>
+            <div class="card-container fan-cards">
+                <div class="card status-card">
+                    <h4>OFF</h4>
+                </div>
+                <div class="card current-card">
+                    <h4>0.00A</h4>
+                </div>
+                <div class="card voltage-card">
+                    <h4>0.00V</h4>
+                </div>
+                <div class="card power-card">
+                    <h4>0.00W</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3 style="margin: 0 0 10px 0;">CURRENT</h3>
+        <div class="chart-container">
+            <canvas id="currentChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h3 style="margin: 0 0 10px 0;">TEMPERATURE</h3>
+        <div class="chart-container">
+            <canvas id="temperatureChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h3 style="margin: 0 0 10px 0;">POWER</h3>
+        <div class="chart-container">
+            <canvas id="powerChart"></canvas>
+        </div>
+    </div>
+
+    
+    <div class="control-section" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+        <button id="fanBtn" class="control-btn active" onclick="toggleButton('fanBtn')">FAN ON</button> 
+        <button id="peltierBtn" class="control-btn active" onclick="toggleButton('peltierBtn')">PELTIER ON</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+    <script>
+        const current = document.getElementById('currentChart').getContext('2d');
+        const temperature = document.getElementById('temperatureChart').getContext('2d');
+        const power = document.getElementById('powerChart').getContext('2d');
+
+        Chart.register(ChartDataLabels);
+        const currentChart = new Chart(current, {
+            type: 'line',
+            data: {
+                labels: [],  // ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Fan',
+                    data: [],  // [0.3, 0.5, 0.4, 0.2, 0.6, 0.3, 0.9],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(75, 192, 192, 1)'
+                },
+                {
+                    label: 'Peltier',
+                    data: [],  //[0.2, 0.7, 0.3, 0.7, 0.5, 0.2, 0.8],
+                    borderColor: 'rgba(102, 255, 0, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(102, 255, 0, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rect',
+                            pointStyleWidth: 60,
+                        }
+                    },
+                    datalabels: {
+                        display: false,
+                    },
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Current (Amps)',
+                        },
+                        beginAtZero: true,
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date & Time',
+                        },
+                        beginAtZero: true,
+                    },
+                },
+            }
+        });
+        const temperatureChart = new Chart(temperature, {
+            type: 'line',
+            id: 'temperatureChart',
+            data: {
+                labels: [],  // ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Temperature',
+                    data: [],  // [3.3, 3.8, 3.5, 3.6, 3.2, 3.9, 3.4],
+                    borderColor: 'rgba(153, 102, 255, 1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'rgba(153, 102, 255, 1)'
+                }
+            ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rect',
+                        pointStyleWidth: 60
+                        }
+                    },
+                    datalabels: {
+                        display: false,
+                    },
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Temperature (F)',
+                        },
+                        beginAtZero: true,
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date & Time',
+                        },
+                        beginAtZero: true,
+                    },
+                },
+            }
+        });
+        const powerChart = new Chart(power, {
+            type: 'line',
+            id: 'powerChart',
+            data: {
+                labels: [],  // ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '24:00'],
+                datasets: [
+                {
+                    label: 'Power',
+                    data: [],
+                    borderColor: 'brown',
+                    backgroundColor: 'rgba(150, 75, 0, 0.1)',
+                    borderWidth: 1,
+                    pointBackgroundColor: 'brown',
+                    pointBorderColor: 'brown',
+                    pointRadius: 3
+                }
+            ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                        usePointStyle: true,
+                        pointStyle: 'rect',
+                        pointStyleWidth: 60
+                        }
+                    },
+                    datalabels: {
+                        display: false,
+                    },
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Power (Watts)',
+                        },
+                        beginAtZero: true,
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date & Time',
+                        },
+                        beginAtZero: true,
+                    },
+                },
+            }
+        });
+        // Toast pop ups
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #333;
+                color: white;
+                padding: 16px 24px;
+                border-radius: 4px;
+                z-index: 1000;
+                font-family: Oswald;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                animation: slideIn 0.3s ease;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // button toggle on/off
+        function toggleButton(buttonId) {
+            const btn = document.getElementById(buttonId);
+            const deviceName = buttonId === 'fanBtn' ? 'Fan' : 'Peltier';
+            const deviceId = buttonId === 'fanBtn' ? 'fan' : 'peltier';
+            
+            if (buttonId === 'fanBtn') {
+                lastFanActionTime = Date.now();
+            } else if (buttonId === 'peltierBtn') {
+                lastPeltierActionTime = Date.now();
+            }
+            
+            if (btn.classList.contains('active')) {
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+                btn.innerText = btn.innerText.replace('ON', 'OFF');
+                showToast(`${deviceName} has been turned off`);
+                setDevice(deviceId, false);
+            } else {
+                btn.classList.remove('inactive');
+                btn.classList.add('active');
+                btn.innerText = btn.innerText.replace('OFF', 'ON');
+                showToast(`${deviceName} has been turned on`);
+                setDevice(deviceId, true);
+            }
+        }
+    </script>
+    <style>
+        h1 {
+            font-family: Oswald;
+            text-align: center;
+        }
+        h3 {
+            font-family: Oswald;
+            font-weight: 400;
+            text-align: start;
+        }
+
+        h4, p, span {
+            font-family: Oswald;
+            font-weight: 400;
+            text-align: start;
+        }
+
+        .control-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-family: Oswald;
+            font-weight: 500;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .control-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+        }
+        .control-btn.active:hover {
+            background-color: #45a049;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.6);
+        }
+        .control-btn.inactive {
+            background-color: #cccccc;
+            color: #666666;
+            box-shadow: none;
+        }
+        .control-btn.inactive:hover {
+            background-color: #b3b3b3;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+
+        :root {
+            --bg-dark-charcoal: #0d1117;
+            --bg-dark-slate: #161b22;
+            --bg-dark-slate-light: #21262d;
+            --text-off-white: #e6edf3;
+        }
+        
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark-charcoal);
+            color: var(--text-off-white);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        .section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .chart-container {
+            width: 600px;
+            height: 400px;
+            max-width: calc(80% - 2em);
+            background-color: var(--bg-dark-slate);
+            padding: 1em;
+            border-radius: 1em;
+            margin-bottom: 4em;
+        }
+
+        .card-section {
+            width: 600px;
+            max-width: calc(80% - 2em);
+            background-color: var(--bg-dark-slate);
+            padding: 1em;
+            border-radius: 1em;
+            margin-bottom: 2em;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1em;
+        }
+
+        .card-section h4 {
+            font-size: 1.2em;
+            margin: 0;
+        }
+
+        .card-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1em;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 120px;
+            aspect-ratio: 8/4;
+            background-color: var(--bg-dark-slate-light);
+            padding: 1em;
+            border-radius: 1em;
+            margin-bottom: 1em;
+        }
+
+        .card h4, .card p, .card span {
+            font-family: Oswald;
+            font-weight: 400;
+            text-align: start;
+            margin: 0;
+        }
+
+        .card h4 {
+            font-size: 1.5em;
+        }
+
+        .control-section {
+            position: fixed;
+            bottom: 1em;
+            right: 1em;
+        }
+    </style>
+
+  
+    <script>
+
+        let systemData = {
+            fan: {
+                status: false,
+                current: 0.00,
+                voltage: 0.00,
+                power: 0.00
+            },
+            peltier: {
+                status: false,
+                current: 0.00,
+                voltage: 0.00,
+                power: 0.00
+            },
+            system: {
+                status: false,
+                temperature: 0.00,
+                power: 0.00
+            }
+        }
+
+        let lastFanActionTime = 0;
+        let lastPeltierActionTime = 0;
+        const BUTTON_UPDATE_COOLDOWN = 5000;
+
+        // Inital http request to get the data
+        fetch('/api/data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.type === 'moreData') {
+                updateChart(data.data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+
+        const wsUrl = 'ws://localhost:3000?id=web';
+        const socket = new WebSocket(wsUrl);
+
+        socket.onmessage = function(event) {
+            console.log('Received message:', event.data);
+            const data = JSON.parse(event.data);
+            console.log(data);
+            if (data.type === 'individualData') {
+                updateStatus(data.data);
+            } else if (data.type === 'moreData') {
+                updateChart(data.data);
+            }
+        };
+
+        function updateStatus(data) {
+            
+            systemData.fan.status = data.fanStatus;
+            systemData.fan.current = data.fanCurrent;
+            systemData.fan.voltage = data.fanVoltage;
+            systemData.fan.power = data.fanPower;
+
+            systemData.peltier.status = data.pelStatus;
+            systemData.peltier.current = data.pelCurrent;
+            systemData.peltier.voltage = data.pelVoltage;
+            systemData.peltier.power = data.pelPower;
+            
+            systemData.system.temperature = data.temperature;
+            systemData.system.power = data.fanPower + data.pelPower;
+            systemData.system.status = data.fanStatus && data.pelStatus;
+
+            
+            const now = Date.now();
+            const timeSinceFanAction = now - lastFanActionTime;
+            const timeSincePeltierAction = now - lastPeltierActionTime;
+
+            // Update fan button only if 5+ seconds have passed since last fan action to prevent button flicker
+            if (timeSinceFanAction >= BUTTON_UPDATE_COOLDOWN) {
+                document.getElementById('fanBtn').classList.toggle('active', systemData.fan.status);
+                document.getElementById('fanBtn').innerText = systemData.fan.status ? 'FAN ON' : 'FAN OFF';
+                document.getElementById('fanBtn').classList.toggle('inactive', !systemData.fan.status);
+            }
+
+            // Same for peltier
+            if (timeSincePeltierAction >= BUTTON_UPDATE_COOLDOWN) {
+                document.getElementById('peltierBtn').classList.toggle('active', systemData.peltier.status);
+                document.getElementById('peltierBtn').innerText = systemData.peltier.status ? 'PELTIER ON' : 'PELTIER OFF';
+                document.getElementById('peltierBtn').classList.toggle('inactive', !systemData.peltier.status);
+            }
+
+            document.querySelector('.card-container.system-cards .card.status-card h4').innerText = systemData.system.status ? 'ON' : 'OFF';
+            document.querySelector('.card-container.system-cards .card.temperature-card h4').innerText = systemData.system.temperature.toFixed(2) + 'F';
+            document.querySelector('.card-container.system-cards .card.power-card h4').innerText = systemData.system.power.toFixed(2) + 'W';
+
+            document.querySelector('.card-container.peltier-cards .card.status-card h4').innerText = systemData.peltier.status ? 'ON' : 'OFF';
+            document.querySelector('.card-container.peltier-cards .card.current-card h4').innerText = systemData.peltier.current.toFixed(2) + 'A';
+            document.querySelector('.card-container.peltier-cards .card.voltage-card h4').innerText = systemData.peltier.voltage.toFixed(2) + 'V';
+            document.querySelector('.card-container.peltier-cards .card.power-card h4').innerText = systemData.peltier.power.toFixed(2) + 'W';
+
+            document.querySelector('.card-container.fan-cards .card.status-card h4').innerText = systemData.fan.status ? 'ON' : 'OFF';
+            document.querySelector('.card-container.fan-cards .card.current-card h4').innerText = systemData.fan.current.toFixed(2) + 'A';
+            document.querySelector('.card-container.fan-cards .card.voltage-card h4').innerText = systemData.fan.voltage.toFixed(2) + 'V';
+            document.querySelector('.card-container.fan-cards .card.power-card h4').innerText = systemData.fan.power.toFixed(2) + 'W';
+        }
+
+        function updateChart(data) {
+            // Labels (times)
+            let lastDate = null;
+            let labels = [];
+            for (let d of data) {
+                // Check if it is a new day, if so, display the day and time
+                if (lastDate === null || lastDate.getDate() !== new Date(d.datetime).getDate()) {
+                    lastDate = new Date(d.datetime);
+                    labels.push(lastDate.toLocaleString());
+                } else {  // Otherwise, display the time
+                    labels.push(new Date(d.datetime).toLocaleTimeString());
+                }
+            }
+
+            // Power
+            const totalPowers = data.map(d => parseFloat(d.fanPower) + parseFloat(d.pelPower));
+
+            if (powerChart) {
+                powerChart.data.labels = labels;
+                powerChart.data.datasets[0].data = totalPowers;
+                powerChart.update();
+            }
+
+
+            // Current
+            const fanCurrents = data.map(d => parseFloat(d.fanCurrent));
+            const pelCurrents = data.map(d => parseFloat(d.pelCurrent));
+            if (currentChart) {
+                currentChart.data.labels = labels;
+                currentChart.data.datasets[0].data = fanCurrents;
+                currentChart.data.datasets[1].data = pelCurrents;
+                currentChart.update();
+            }
+
+
+            // Temperature
+            const temperatures = data.map(d => parseFloat(d.temperature));
+            if (temperatureChart) {
+                temperatureChart.data.labels = labels;
+                temperatureChart.data.datasets[0].data = temperatures;
+                temperatureChart.update();
+            }
+        }
+        
+
+        async function setDevice(device, status) {
+            const response = await fetch('/api/control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({device: device, status: status}),
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast(`${device} has been turned ${status ? 'on' : 'off'}`);
+            } else {
+                showToast(`Failed to turn ${device} ${status ? 'on' : 'off'}`);
+                console.error('Error turning device:', data.error);
+            }
+        }
+
+
+        // document.getElementById('fanOn').onclick = () => setDevice('fan', true);
+        // document.getElementById('fanOff').onclick = () => setDevice('fan', false);
+        // document.getElementById('peltierOn').onclick = () => setDevice('peltier', true);
+        // document.getElementById('peltierOff').onclick = () => setDevice('peltier', false);
+        
+        // Fallback polling every 30 seconds
+        // setInterval(() => {
+        //     if (socket.readyState === WebSocket.OPEN) {
+        //         socket.send('refresh');
+        //     }
+        // }, 30000);
+    </script>
+</body>
+</html>
