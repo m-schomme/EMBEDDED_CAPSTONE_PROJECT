@@ -8,14 +8,15 @@
 HardwareSerial mySerial(2);
 
 
-const char* ssid = "CALEB 1621";
-const char* password = "Q52|3z54";
+const char* ssid = "INSERT SSID";
+const char* password = "INSERT PASSWORD";
 
 
-const char* serverHost = "Calebs-Laptop.local";
+const char* serverHost = "INSERT HOST";
 const int serverPort = 3000;
 const char* websocketPath = "/?id=esp";
 
+String incoming = "";
 
 WebSocketsClient webSocket;
 
@@ -50,7 +51,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
                 Serial.printf("Setting Fan Status to: %s\n", fanOn ? "ON" : "OFF");
 
                 // Communicate to STM32
-                mySerial.printf("fan,%d\n", fanOn);
+                mySerial.printf(fanOn ? "FAN_ON" : "FAN_OFF");
             }
 
             if (data.containsKey("pelStatus")) {
@@ -58,7 +59,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
                 Serial.printf("Setting Peltier Status to: %s\n", pelOn ? "ON" : "OFF");
 
                 // Communicate to STM32
-                mySerial.printf("peltier,%d\n", pelOn);
+                mySerial.printf(pelOn ? "PELTIER_ON" : "PELTIER_OFF");
             }
         }
         break;
@@ -72,16 +73,18 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 }
 
 void parseUART(String msg) {
-  Serial.print("Received from STM32: ");
-  Serial.println(msg);
+  // Serial.print("Received from STM32: ");
+  // Serial.println(msg);
 
   float fanVoltage, fanCurrent, fanPower, pelVoltage, pelCurrent, pelPower, temperature;
 
   int fanStatus, pelStatus, logData;
 
-  int items = sscanf(msg.c_str(), "%f,%f,%f,%f,%f,%f,%f,%d,%d,%d", &fanVoltage, &fanCurrent, &fanPower, &pelVoltage, &pelCurrent, &pelPower, &temperature, &fanStatus, &pelStatus, &logData);
+  int textStatus;
 
-  if (items != 10) {
+  int items = sscanf(msg.c_str(), "%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d", &fanVoltage, &fanCurrent, &fanPower, &pelVoltage, &pelCurrent, &pelPower, &temperature, &fanStatus, &pelStatus, &logData, &textStatus);
+
+  if (items != 11) {
     Serial.printf("Wrong amt of data entered from STM32");
     return;
   }
@@ -97,6 +100,7 @@ void parseUART(String msg) {
   doc["fanStatus"] = (fanStatus == 1);
   doc["pelStatus"] = (pelStatus == 1);
   doc["logData"] = (logData == 1);
+  doc["textStatus"] = textStatus;
 
 
   StaticJsonDocument<768> wrapperObj;
@@ -106,20 +110,20 @@ void parseUART(String msg) {
   String requestBody;
   serializeJson(wrapperObj, requestBody);
 
-  Serial.print("Sending: ");
-  Serial.println(requestBody);
+  // Serial.print("Sending: ");
+  // Serial.println(requestBody);
   webSocket.sendTXT(requestBody);
 
 }
 
 void checkStm32Data() {
-  if (mySerial.available()) {
-    String msg = mySerial.readStringUntil('\n');
-    msg.trim();
-    if (msg.length() > 0) {
-      parseUART(msg);
-    }
-  }
+  // if (mySerial.available()) {
+  //   String msg = mySerial.readStringUntil('\n');
+  //   msg.trim();
+  //   if (msg.length() > 0) {
+  //     parseUART(msg);
+  //   }
+  // }
 }
 
 void checkKeyboardInput() {
@@ -135,6 +139,7 @@ void checkKeyboardInput() {
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  mySerial.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
 
   // Connect to wifi
   Serial.print("Connecting to ");
@@ -157,7 +162,22 @@ void setup() {
 void loop() {
 
   webSocket.loop();
-  checkStm32Data(); // Checks for STM32 data
+  // checkStm32Data(); // Checks for STM32 data
+
+
+  while (mySerial.available()) {
+    char c = mySerial.read();
+    // Serial.print(c);
+    if (c == '|') {
+      // Serial.print("Received from STM32: ");
+      // Serial.println(incoming);
+      parseUART(incoming);
+      incoming = "";
+    } else {
+      incoming += c;
+    }
+  }
+
 
   // checkKeyboardInput();
 
