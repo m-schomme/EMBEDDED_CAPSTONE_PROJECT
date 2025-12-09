@@ -35,7 +35,7 @@ HardwareAPI::HardwareAPI(bool testing) {
 void HardwareAPI::setBaseADC() {
     turnFanOff();
     turnPeltierOff();
-    delay(5000);
+    delay(10000);
     _baseFanADCValue = _getCurrentADC(5000, _fanCurrentPin);
     _basePeltierADCValue = _getCurrentADC(5000, _peltierCurrentPin);
 }
