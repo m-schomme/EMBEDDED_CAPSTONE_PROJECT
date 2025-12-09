@@ -68,6 +68,9 @@ int LogData(int state);
 volatile bool SendFlag = false;
 volatile bool logData = false;
 
+volatile int textStatus = 0;
+volatile int lastTextStatus = 0;
+
 // task functions
 int SampleData(int state)
 {
@@ -123,7 +126,12 @@ int SendData(int state)
     Serial1.print(avgTempF); Serial1.print(",");
     Serial1.print(fanStatus); Serial1.print(",");
     Serial1.print(pelStatus); Serial1.print(",");
-    Serial1.print(logData);
+    Serial1.print(logData); Serial1.print(",");
+    if (textStatus > 0 && textStatus != lastTextStatus) {
+        Serial1.print(textStatus);
+    } else {
+        Serial1.print("0");
+    }
     Serial1.print("|");
 
     for (int i = powerManagementMemory-1; i > 0; i--) {
@@ -144,6 +152,7 @@ int SendData(int state)
 
     SendFlag = false;
     logData = false;
+    lastTextStatus = textStatus;
 
     return state;
 }
@@ -164,11 +173,15 @@ int RelayControl(int state)
     if ((fanPowerAvg + peltierPowerAvg) > 10) {
         hardwareAPI.turnFanOff();
         hardwareAPI.turnPeltierOff();
+        textStatus = 1;
     } else {
         float temp = hardwareAPI.getTemperature();
         if (temp > 80.0f) {
             hardwareAPI.turnFanOn();
             hardwareAPI.turnPeltierOn();
+            textStatus = 2;
+        } else {
+            textStatus = 0;
         }
     }
 
@@ -219,6 +232,11 @@ void setup() {
     Serial1.println("Hey, ESP ! STM32 RTOS Initialized");
     Serial.begin(115200);
     Serial.println("RTOS STARTED");
+
+    // Callibrating Sensors
+    Serial.println("Callibrating Sensors...");
+    hardwareAPI.setBaseADC();
+    Serial.println("Sensors Callibrated!");
 
     // intialize 3.3 V
     pinMode(THREE_VOLT, OUTPUT);
